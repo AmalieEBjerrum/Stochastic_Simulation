@@ -15,3 +15,9 @@ class LCG:
 
     def generate(self, n):
         return [self.next_uniform() for _ in range(n)]
+
+if __name__ == "__main__":
+    lcg = LCG(seed=12345)
+    numbers = lcg.generate(10)
+    for i, x in enumerate(numbers):
+        print(f"U_{i+1} = {x}")
