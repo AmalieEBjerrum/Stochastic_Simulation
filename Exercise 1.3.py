@@ -10,6 +10,14 @@ M = 2**32
 a = 64525
 c = 451390
 
+#Linear Congruential Generator (LCG) function
+def LCG(x0, M, a, c, n):
+    x = x0
+    numbers = []
+    for _ in range(n):
+        x = (a * x + c) % M
+        numbers.append(x / M)
+    return np.array(numbers)
 #Generate random numbers by calling the function
 randomnumbers = LCG(x0, M, a, c, n)
 
@@ -44,10 +52,11 @@ def run_tests(sample, results):
     corr, _ = pearsonr(sample[:-1], sample[1:])
     results['corr'].append(corr)
 
+
 #Main Loop
 for _ in range(num_samples):
     lcg_sample = LCG(x0, M, a, c, sample_size)
-    sys_sample = sys_rng.random(sample_size)
+    sys_sample = np.random.rand(sample_size)  # <-- fix here
 
     run_tests(lcg_sample, results_lcg)
     run_tests(sys_sample, results_sys)
