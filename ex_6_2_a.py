@@ -23,6 +23,9 @@ def propose(i, j):
             return ni, nj
     return i, j  # stay in place if no valid move
 
+n_samples = 100000
+burn_in = 5000  # for example, discard first 5000 samples
+
 # Metropolis-Hastings sampling
 samples = []
 i, j = 0, 0  # initial state
@@ -33,6 +36,9 @@ for _ in range(n_samples):
     if np.random.rand() < alpha:
         i, j = ni, nj
     samples.append((i, j))
+
+# Discard burn-in samples
+samples = samples[burn_in:]
 
 # Count occurrences
 counts = defaultdict(int)
@@ -45,7 +51,7 @@ valid_states = [(i, j) for i in range(m + 1) for j in range(m + 1) if i + j <= m
 # Observed and expected frequencies
 observed = np.array([counts[(i, j)] for (i, j) in valid_states])
 unnormalized_probs = np.array([joint_pmf(i, j) for (i, j) in valid_states])
-expected = n_samples * (unnormalized_probs / unnormalized_probs.sum())
+expected = len(samples) * (unnormalized_probs / unnormalized_probs.sum())
 print(min(expected))
 
 # Chi-squared test

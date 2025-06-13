@@ -32,7 +32,7 @@ m = 10
 n_samples = 10000
 samples = metropolis_hastings_truncated_poisson(A, m, n_samples)
 burn_in = 1000
-samples = samples
+samples = samples[burn_in:]  # Discard burn-in samples
 
 # Normalize the expected distribution
 unnorm_probs = np.array([A**i / np.math.factorial(i) for i in range(m+1)])
