@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.stats import norm
+import random
+np.random.seed(42)
 
 # Parameters
 n = 100  # number of samples

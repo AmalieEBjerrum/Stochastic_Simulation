@@ -4,94 +4,81 @@ from scipy.stats import chisquare, kstest, pearsonr, chi2
 from statsmodels.sandbox.stats.runs import runstest_1samp
 
 # --- Parameters ---
-num_samples = 100           # number of independent RNG tests
-sample_size = 10000         # size of each individual RNG sample
-num_bins = 10               # number of histogram bins
+num_simulations = 100           # number of independent RNG tests (renamed for clarity)
+sample_size = 10000             # size of each individual RNG sample
+num_bins = 10                   # number of histogram bins for chi-squared test
 bin_edges = np.linspace(0, 1, num_bins + 1)
 rng = np.random.default_rng(seed=123)
 
-# --- Storage for test results ---
-results = {
-    'chi2': [],
-    'ks': [],
-    'runs_z': [],
-    'lag1_corr': []
+# --- Storage for p-values ---
+p_value_results = {
+    'chi2_pvalue': [],
+    'ks_pvalue': [],
+    'runs_pvalue': [],
+    'lag1_corr_pvalue': []
 }
 
-# --- Critical values (95% level) ---
-chi2_crit = chi2.ppf(0.95, df=num_bins - 1)
-ks_crit = 1.36 / np.sqrt(sample_size)  # Approximation for KS test
-runs_crit = 1.96                       # 95% two-sided z-threshold
-corr_crit = 1.96 / np.sqrt(sample_size)  # Approx. 95% CI for correlation under H0
-
-# --- Fail counters ---
-fails = {
-    'chi2': 0,
-    'ks': 0,
-    'runs_z': 0,
-    'lag1_corr': 0
-}
-
-# --- Function to run all tests on a sample ---
-def run_tests(sample):
+# --- Function to run all tests on a sample and return p-values ---
+def run_tests_return_pvalues(sample):
+    # Chi-squared test
     observed, _ = np.histogram(sample, bins=bin_edges)
     expected = np.full(num_bins, sample_size / num_bins)
-    chi2_stat, _ = chisquare(observed, expected)
+    _, chi2_pvalue = chisquare(observed, expected) # Capture p-value
     
-    ks_stat, _ = kstest(sample, 'uniform')
+    # Kolmogorov-Smirnov test
+    _, ks_pvalue = kstest(sample, 'uniform') # Capture p-value
     
-    signs = np.where(sample > np.median(sample), 1, 0)
-    _, runs_z = runstest_1samp(signs)
+    # Runs Test
+    # The 'runstest_1samp' function returns (z_statistic, p_value)
+    # Be careful: statsmodels runstest_1samp often gives a two-sided p-value by default.
+    # We want to check for non-randomness, so the two-sided p-value is generally appropriate.
+    _, runs_pvalue = runstest_1samp(sample > np.median(sample)) # Use boolean array for signs
     
-    corr, _ = pearsonr(sample[:-1], sample[1:])
+    # Lag-1 Autocorrelation test (Pearson correlation)
+    # The 'pearsonr' function returns (correlation_coefficient, p_value)
+    corr_coeff, lag1_corr_pvalue = pearsonr(sample[:-1], sample[1:])
     
-    return chi2_stat, ks_stat, runs_z, corr
+    return chi2_pvalue, ks_pvalue, runs_pvalue, lag1_corr_pvalue
 
 # --- Main Simulation Loop ---
-for _ in range(num_samples):
+for _ in range(num_simulations):
     sample = rng.random(sample_size)
-    chi2_stat, ks_stat, runs_z, corr = run_tests(sample)
+    chi2_p, ks_p, runs_p, lag1_p = run_tests_return_pvalues(sample)
     
-    results['chi2'].append(chi2_stat)
-    results['ks'].append(ks_stat)
-    results['runs_z'].append(runs_z)
-    results['lag1_corr'].append(corr)
-    
-    if chi2_stat > chi2_crit:
-        fails['chi2'] += 1
-    if ks_stat > ks_crit:
-        fails['ks'] += 1
-    if abs(runs_z) > runs_crit:
-        fails['runs_z'] += 1
-    if abs(corr) > corr_crit:
-        fails['lag1_corr'] += 1
+    p_value_results['chi2_pvalue'].append(chi2_p)
+    p_value_results['ks_pvalue'].append(ks_p)
+    p_value_results['runs_pvalue'].append(runs_p)
+    p_value_results['lag1_corr_pvalue'].append(lag1_p)
 
-# --- Visualization ---
-fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-axs = axs.ravel()
+# --- Visualization for P-value Distributions ---
+fig_p, axs_p = plt.subplots(2, 2, figsize=(12, 10))
+axs_p = axs_p.ravel()
 
-test_labels = [
-    ("Chi² Statistic", "chi2", chi2_crit),
-    ("Kolmogorov–Smirnov Statistic", "ks", ks_crit),
-    ("Runs Test Z-Statistic", "runs_z", runs_crit),
-    ("Lag-1 Correlation", "lag1_corr", corr_crit)
+p_value_labels = [
+    ("Chi² P-value Distribution", "chi2_pvalue"),
+    ("Kolmogorov–Smirnov P-value Distribution", "ks_pvalue"),
+    ("Runs Test P-value Distribution", "runs_pvalue"),
+    ("Lag-1 Correlation P-value Distribution", "lag1_corr_pvalue")
 ]
 
-for i, (title, key, crit) in enumerate(test_labels):
-    axs[i].hist(results[key], bins=20, color='steelblue', edgecolor='black')
-    axs[i].axvline(crit, color='red', linestyle='--', label='95% Threshold')
-    if key in ['runs_z', 'lag1_corr']:
-        axs[i].axvline(-crit, color='red', linestyle='--')
-    axs[i].set_title(title)
-    axs[i].set_ylabel("Frequency")
-    axs[i].set_xlabel("Test Statistic")
-    axs[i].legend()
+for i, (title, key) in enumerate(p_value_labels):
+    axs_p[i].hist(p_value_results[key], bins=20, range=(0, 1), color='skyblue', edgecolor='black')
+    axs_p[i].axhline(num_simulations / 20, color='red', linestyle='--', label='Expected Uniform Density') # For uniform, bins * (height / total_sims) = 1
+    axs_p[i].set_title(title)
+    axs_p[i].set_ylabel("Frequency")
+    axs_p[i].set_xlabel("P-value")
+    axs_p[i].set_ylim(bottom=0) # Ensure y-axis starts at 0
+    axs_p[i].legend()
 
 plt.tight_layout()
-plt.savefig('1.3.png')
+plt.suptitle("P-value Distributions from Multiple RNG Test Runs", y=1.03)
+plt.savefig('1.3_pvalue_dist.png') # New filename for p-value plot
 plt.show()
 
-# --- Print Fail Summary ---
-print("\nTest Failures (out of", num_samples, "samples):")
-for test, count in fails.items():
-    print(f"{test:10s}: {count:3d} failures")
+# --- Optional: Print summary of p-values if needed (e.g., how many below 0.05) ---
+print("\n--- P-value Analysis (Proportion below 0.05 significance) ---")
+alpha = 0.05
+for key, p_values in p_value_results.items():
+    failures = np.sum(np.array(p_values) < alpha)
+    proportion = failures / num_simulations
+    print(f"{key:20s}: {failures:3d}/{num_simulations} failures ({proportion:.2f}%)")

@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import random
+from scipy import stats
 
+np.random.seed(42)
 
 #Pareto using Composition
 def pareto_by_composition(n, k, beta=1.0):
@@ -10,6 +13,9 @@ def pareto_by_composition(n, k, beta=1.0):
 #To compare with the analytical solution
 def analytical_pdf(x, k, beta):
     return (k * beta**k) / (x ** (k + 1)) * (x >= beta)
+
+def analytical_cdf(x, k, beta):
+    return np.where(x >= beta, 1 - (beta / x)**k, 0)
 
 def analytical_mean(k, beta):
     return (k * beta) / (k - 1) if k > 1 else np.inf
@@ -29,12 +35,22 @@ plt.figure(figsize=(12, 8))
 
 x_vals = np.linspace(1, 10, 1000)
 
+ks_results = []
+
 for i, k in enumerate(k_values, 1):
     samples = pareto_by_composition(n, k, beta)
     sample_mean = np.mean(samples)
     sample_var = np.var(samples, ddof=1)
     theo_mean = analytical_mean(k, beta)
     theo_var = analytical_variance(k, beta)
+
+    ks_statistic, ks_pvalue = stats.kstest(samples, lambda x: analytical_cdf(x, k, beta))
+    
+    ks_results.append({
+        'k': k,
+        'statistic': ks_statistic,
+        'pvalue': ks_pvalue
+    })
 
     # Plot histogram
     plt.subplot(2, 2, i)
@@ -61,3 +77,10 @@ plt.tight_layout()
 plt.suptitle("Pareto Distribution — Simulated vs Analytical PDF", y=1.03)
 plt.savefig('3.4 Composition.png')
 plt.show()
+
+# Print K-S test results
+print("\n--- Kolmogorov-Smirnov Test Results ---")
+print(f"{'k':<5} | {'K-S Statistic':<15} | {'K-S p-value':<12}")
+print("-" * 37)
+for res in ks_results:
+    print(f"{res['k']:<5} | {res['statistic']:<15.4f} | {res['pvalue']:<12.4f}")

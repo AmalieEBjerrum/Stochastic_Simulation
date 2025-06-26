@@ -1,6 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from scipy import stats
+
+np.random.seed(42)
 
 #Defining 6 Point Distribution
 X = [1,2,3,4,5,6]
@@ -11,18 +14,18 @@ Probabilities = [7/48, 5/48, 1/8, 1/16, 1/4, 5/16]
 #Computing the CDF
 cdf = np.cumsum(Probabilities)
 
-def crude_method(size=10000):
+def crude_method(size):
     samples = []
     for _ in range(size):
         u = np.random.uniform()
-        for i, threshold in enumerate(cdf):
-            if u <= threshold:
-                samples.append([X[i]])
-                break
+        idx = np.searchsorted(cdf, u)
+        samples.append(X[idx]) # Append the actual X value, not a list
     return np.array(samples)
         
 #Simulating
-samples = crude_method()
+#Simulating
+size = 10000
+samples = crude_method(size)
 
  # Plotting
 plt.hist(samples, bins=np.arange(0.5, 6.6, 1), density=True, edgecolor='black', alpha=0.7)
@@ -34,6 +37,22 @@ plt.grid(True)
 plt.savefig('2.2a Direct Crude.png')
 plt.show()     
 
+#Chi-squared test
+#Counts for values 1 through 6
+observed_counts = np.bincount(samples.astype(int))[1:7]
+# Calculate expected frequencies
+expected_counts = np.array(Probabilities) * size
+
+chi2_statistic, p_value = stats.chisquare(f_obs=observed_counts, f_exp=expected_counts)
+
+print(f"\n--- Chi-squared Goodness-of-Fit Test ---")
+print(f"Chi-squared Statistic: {chi2_statistic:.4f}")
+print(f"P-value:               {p_value:.4f}")
+if p_value > 0.05:
+    print("The samples are consistent with the theoretical distribution (fail to reject H0).")
+else:
+    print("The samples are NOT consistent with the theoretical distribution (reject H0).")
+
 
 
 #b) Rejection Method
@@ -42,7 +61,7 @@ plt.show()
 q = np.array([1/6]*6) #Proposed uniform distribution from X
 C = np.max(Probabilities / q)  #Rejection constant 
 
-def rejection_method(size=10000):
+def rejection_method(size):
     samples = []
     trials = 0
     while len(samples) < size:
@@ -56,7 +75,8 @@ def rejection_method(size=10000):
     return np.array(samples), trials
 
 # Simulation
-samples = rejection_method()
+size = 10000
+samples, num_trials = rejection_method(size)
 
 # Plot
 plt.hist(samples, bins=np.arange(0.5, 6.6, 1), density=True, edgecolor='black', alpha=0.7)
@@ -67,6 +87,30 @@ plt.ylabel('Probability')
 plt.grid(True)
 plt.savefig('2.2b Rejection Method.png')
 plt.show()
+
+
+#Chi-squared test
+#Counts for values 1 through 6
+observed_counts = np.bincount(samples.astype(int))[1:7]
+# Calculate expected frequencies
+expected_counts = np.array(Probabilities) * size
+
+# Perform Chi-squared test
+chi2_statistic, p_value = stats.chisquare(f_obs=observed_counts, f_exp=expected_counts)
+
+print(f"\n--- Chi-squared Goodness-of-Fit Test (Rejection Method) ---")
+print(f"Number of samples generated: {len(samples)}")
+print(f"Total trials to get {len(samples)} samples: {num_trials}")
+print(f"Efficiency (samples / trials): {len(samples)/num_trials:.4f}")
+print(f"Chi-squared Statistic: {chi2_statistic:.4f}")
+print(f"P-value:               {p_value:.4f}")
+if p_value > 0.05:
+    print("The samples are consistent with the theoretical distribution (fail to reject H0).")
+else:
+    print("The samples are NOT consistent with the theoretical distribution (reject H0).")
+
+
+
 
 
 #c) Alias method
@@ -109,7 +153,7 @@ def alias_setup(probabilities):
     return F, L
 
 #Function for carrying out the steps using samples from the tables
-def alias_method(F, L, X, size=10000):
+def alias_method(F, L, X,size):
     n = len(F)
     idx = np.random.randint(0, n, size)
     coin = np.random.uniform(0, 1, size)
@@ -120,7 +164,8 @@ def alias_method(F, L, X, size=10000):
 F, L = alias_setup(Probabilities)
 
 # Simulation
-samples = alias_method(F, L, X)
+size=10000
+samples = alias_method(F, L, X,size)
 
 # Plot
 plt.hist(samples, bins=np.arange(0.5, 6.6, 1), density=True, edgecolor='black', alpha=0.7)
@@ -131,6 +176,28 @@ plt.ylabel('Probability')
 plt.grid(True)
 plt.savefig('2.2c Alias Method.png')
 plt.show()
+
+#Chi-squared test
+#Counts for values 1 through 6
+observed_counts = np.bincount(samples.astype(int))[1:7]
+# Calculate expected frequencies
+expected_counts = np.array(Probabilities) * size
+
+# Perform Chi-squared test
+chi2_statistic, p_value = stats.chisquare(f_obs=observed_counts, f_exp=expected_counts)
+
+print(f"\n--- Chi-squared Goodness-of-Fit Test (Alias Method) ---")
+print(f"Number of samples generated: {len(samples)}")
+print(f"Total trials to get {len(samples)} samples: {num_trials}")
+print(f"Efficiency (samples / trials): {len(samples)/num_trials:.4f}")
+print(f"Chi-squared Statistic: {chi2_statistic:.4f}")
+print(f"P-value:               {p_value:.4f}")
+if p_value > 0.05:
+    print("The samples are consistent with the theoretical distribution (fail to reject H0).")
+else:
+    print("The samples are NOT consistent with the theoretical distribution (reject H0).")
+
+
 
 
 #3. Measurements
